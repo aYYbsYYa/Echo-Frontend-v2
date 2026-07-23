@@ -23,14 +23,14 @@ const discovering = ref(false);
 
 const hero = computed(() =>
   mode.value === "ocean"
-    ? { title: "把心事，交给潮水", sub: "写一只漂流瓶，或捞起一段陌生人的回声" }
-    : { title: "把话语，折进风里", sub: "折一架纸飞机，或接住一段轻轻的问候" },
+    ? { title: "把心事，交给潮水", sub: "写一张浮笺，或捞起一段陌生人的回声" }
+    : { title: "把话语，折进风里", sub: "折一张飞笺，或接住一段轻轻的问候" },
 );
 
 const actions = computed(() =>
   mode.value === "ocean"
-    ? { cast: "扔一只漂流瓶", seek: "捞一个上来" }
-    : { cast: "折一只纸飞机", seek: "接住一只" },
+    ? { cast: "扔一张浮笺", seek: "捞一个上来" }
+    : { cast: "折一张飞笺", seek: "接住一张" },
 );
 
 function switchMode(next: "ocean" | "sky") {
@@ -41,7 +41,7 @@ function switchMode(next: "ocean" | "sky") {
 function onSent(item: DriftItem) {
   composing.value = false;
   pushToast(
-    item.type === "bottle" ? "你的漂流瓶已入海，愿有人拾起。" : "纸飞机已起飞，愿有人接住。",
+    item.type === "bottle" ? "你的浮笺已入海，愿有人拾起。" : "飞笺已起飞，愿有人接住。",
     "success",
   );
   if (item.reply) {
@@ -74,7 +74,7 @@ function onSent(item: DriftItem) {
           <button :class="{ active: mode === 'ocean' }" @click="switchMode('ocean')">海</button>
           <button :class="{ active: mode === 'sky' }" @click="switchMode('sky')">天</button>
         </div>
-        <button class="me" @click="router.push('/mine')" :aria-label="`查看我的${mode === 'ocean' ? '漂流瓶' : '纸飞机'}`">
+        <button class="me" @click="router.push('/mine')" :aria-label="`查看我的${mode === 'ocean' ? '浮笺' : '飞笺'}`">
           <span class="me-avatar">{{ user?.avatar ?? "匿" }}</span>
           <span class="me-name">{{ user?.nickname }}</span>
         </button>

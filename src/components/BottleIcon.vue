@@ -21,7 +21,7 @@ withDefaults(defineProps<{ size?: number | string }>(), { size: 64 });
       stroke-linecap="round"
     />
     <path d="M25.5 13h13" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
-    <!-- 瓶中信 -->
+    <!-- 笺中信 -->
     <rect x="24.5" y="33" width="15" height="17" rx="2" fill="currentColor" opacity="0.28" />
     <path
       d="M28 38h8M28 42h8M28 46h5"

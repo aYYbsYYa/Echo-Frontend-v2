@@ -23,7 +23,7 @@ const sceneLabels: Record<PlaneScene, string> = {
 };
 
 const kindLabel = computed(() =>
-  props.item.type === "bottle" ? "漂流瓶" : sceneLabels[(props.item as { scene: PlaneScene }).scene],
+  props.item.type === "bottle" ? "浮笺" : sceneLabels[(props.item as { scene: PlaneScene }).scene],
 );
 
 const commentOpen = ref(false);

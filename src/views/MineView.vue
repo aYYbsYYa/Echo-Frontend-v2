@@ -75,17 +75,17 @@ function toggle(id: string) {
         </div>
         <div class="who-counts">
           <span><b>{{ bottles.length }}</b> 只瓶</span>
-          <span><b>{{ planes.length }}</b> 架飞机</span>
+          <span><b>{{ planes.length }}</b> 张飞笺</span>
         </div>
       </section>
 
       <!-- 页签 -->
       <div class="tabs">
         <button :class="{ active: tab === 'bottle' }" @click="tab = 'bottle'">
-          <BottleIcon :size="16" /> 漂流瓶
+          <BottleIcon :size="16" /> 浮笺
         </button>
         <button :class="{ active: tab === 'plane' }" @click="tab = 'plane'">
-          <PlaneIcon :size="16" /> 纸飞机
+          <PlaneIcon :size="16" /> 飞笺
         </button>
       </div>
 
@@ -103,9 +103,9 @@ function toggle(id: string) {
       <div v-else-if="list.length === 0" class="hint-box">
         <BottleIcon v-if="tab === 'bottle'" :size="42" class="hint-icon" />
         <PlaneIcon v-else :size="42" class="hint-icon" />
-        <p>{{ tab === "bottle" ? "你还没有扔出漂流瓶。" : "你还没有折过纸飞机。" }}</p>
+        <p>{{ tab === "bottle" ? "你还没有扔出浮笺。" : "你还没有折过飞笺。" }}</p>
         <button class="btn btn-primary" @click="router.push(tab === 'bottle' ? '/' : '/sky')">
-          {{ tab === "bottle" ? "去扔一只" : "去折一只" }}
+          {{ tab === "bottle" ? "去扔一张" : "去折一张" }}
         </button>
       </div>
 
@@ -115,7 +115,7 @@ function toggle(id: string) {
           <button class="card-main" @click="toggle(entry.id)">
             <header class="card-head">
               <span class="badge" :class="entry.type">
-                {{ entry.type === "bottle" ? "漂流瓶" : sceneLabels[(entry as Plane).scene] }}
+                {{ entry.type === "bottle" ? "浮笺" : sceneLabels[(entry as Plane).scene] }}
               </span>
               <time>{{ timeAgo(entry.created_at) }}</time>
             </header>

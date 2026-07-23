@@ -31,13 +31,13 @@ const MAX = 500;
 const remaining = computed(() => MAX - content.value.length);
 const canCast = computed(() => content.value.trim().length > 0 && phase.value === "edit");
 
-const title = computed(() => (props.mode === "ocean" ? "写一只漂流瓶" : "折一只纸飞机"));
+const title = computed(() => (props.mode === "ocean" ? "写一张浮笺" : "折一张飞笺"));
 const placeholder = computed(() =>
   props.mode === "ocean"
     ? "此刻想说的话，写给未知的有缘人……"
     : "把这句话折进风里，它会落在某个陌生人的窗台……",
 );
-const castLabel = computed(() => (props.mode === "ocean" ? "密封，投入海中" : "折好，迎风起飞"));
+const castLabel = computed(() => (props.mode === "ocean" ? "封好，投入海中" : "折好，迎风起飞"));
 
 function pickImage() {
   fileInput.value?.click();
@@ -146,7 +146,7 @@ async function cast() {
         />
       </div>
 
-      <!-- 投掷阶段：漂流瓶入海 -->
+      <!-- 投掷阶段：浮笺入海 -->
       <div v-else-if="mode === 'ocean'" class="cast-stage" aria-hidden="true">
         <div class="scroll-paper" />
         <div class="bottle-wrap">
@@ -158,7 +158,7 @@ async function cast() {
         <p class="cast-caption">正在把心事交给潮水……</p>
       </div>
 
-      <!-- 投掷阶段：纸飞机起飞 -->
+      <!-- 投掷阶段：飞笺起飞 -->
       <div v-else class="cast-stage" aria-hidden="true">
         <div class="fold-paper" />
         <div class="plane-wrap">
@@ -515,7 +515,7 @@ async function cast() {
   }
 }
 
-/* ---- 飞机：现身 → 俯冲 → 爬升远去 ---- */
+/* ---- 飞笺：现身 → 俯冲 → 爬升远去 ---- */
 .plane-wrap {
   position: absolute;
   left: 50%;

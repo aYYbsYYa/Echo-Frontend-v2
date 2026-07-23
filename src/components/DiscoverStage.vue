@@ -33,7 +33,7 @@ async function seek() {
     const res =
       props.mode === "ocean" ? await api.discoverBottle(props.userId) : await api.discoverPlane(props.userId);
     if (!res.data) {
-      quietText.value = res.message ?? (props.mode === "ocean" ? "海面暂时安静，稍后再来。" : "风里还没有新的纸飞机。");
+      quietText.value = res.message ?? (props.mode === "ocean" ? "海面暂时安静，稍后再来。" : "风里还没有新的飞笺。");
       phase.value = "empty";
       return;
     }

@@ -62,7 +62,7 @@ export const api = {
     return request<{ data: Identity }>(`/users/${encodeURIComponent(userId)}`);
   },
 
-  // ---------- 漂流瓶 ----------
+  // ---------- 浮笺 ----------
   publishBottle(userId: string, content: string, image: File | null) {
     return request<{ data: Bottle }>("/bottles", publishPayload(userId, content, image));
   },
@@ -87,7 +87,7 @@ export const api = {
     return request<{ data: Bottle[] }>(`/bottles/mine/${encodeURIComponent(userId)}`);
   },
 
-  // ---------- 纸飞机 ----------
+  // ---------- 飞笺 ----------
   publishPlane(userId: string, content: string, image: File | null) {
     return request<{ data: Plane }>("/planes", publishPayload(userId, content, image));
   },
