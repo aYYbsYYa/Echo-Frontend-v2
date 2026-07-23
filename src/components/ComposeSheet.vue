@@ -81,7 +81,7 @@ async function cast() {
     props.mode === "ocean"
       ? api.publishBottle(props.userId, text, image.value)
       : api.publishPlane(props.userId, text, image.value);
-  const duration = reducedMotion ? 500 : props.mode === "ocean" ? 12000 : 2600; // DEBUG: 采样后恢复 3400
+  const duration = reducedMotion ? 500 : props.mode === "ocean" ? 3400 : 2600;
   const timer = new Promise((resolve) => setTimeout(resolve, duration));
 
   try {
