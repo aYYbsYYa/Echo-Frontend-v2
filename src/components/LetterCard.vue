@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import type { DriftItem, PlaneScene } from "../api/types";
+import type { DriftItem, PlaneScene, BottleScene } from "../api/types";
 import { timeAgo } from "../utils/time";
 
 const props = defineProps<{
@@ -16,14 +16,22 @@ const emit = defineEmits<{
   release: [];
 }>();
 
-const sceneLabels: Record<PlaneScene, string> = {
+const bottleSceneLabels: Record<BottleScene, string> = {
+  shallow: "漂在浅滩",
+  deep: "沉入深海",
+  drift: "随波逐流",
+};
+
+const planeSceneLabels: Record<PlaneScene, string> = {
   sky: "落在云端",
   window: "停在窗台",
   tree: "挂上树梢",
 };
 
 const kindLabel = computed(() =>
-  props.item.type === "bottle" ? "浮笺" : sceneLabels[(props.item as { scene: PlaneScene }).scene],
+  props.item.type === "bottle"
+    ? bottleSceneLabels[props.item.scene]
+    : planeSceneLabels[(props.item as { scene: PlaneScene }).scene],
 );
 
 const commentOpen = ref(false);

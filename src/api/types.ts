@@ -23,6 +23,7 @@ export interface ItemComment {
 export interface Bottle {
   id: string;
   type: "bottle";
+  scene: BottleScene;
   content: string;
   image_url: string | null;
   nickname: string;
@@ -38,6 +39,8 @@ export interface Bottle {
   /** 仅作者可见 */
   comments?: ItemComment[];
 }
+
+export type BottleScene = "shallow" | "deep" | "drift";
 
 export type PlaneScene = "sky" | "window" | "tree";
 
