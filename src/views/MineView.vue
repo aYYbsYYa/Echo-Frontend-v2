@@ -5,7 +5,7 @@ import OceanBackdrop from "../components/OceanBackdrop.vue";
 import BottleIcon from "../components/BottleIcon.vue";
 import PlaneIcon from "../components/PlaneIcon.vue";
 import { api } from "../api/client";
-import type { Bottle, Plane, PlaneScene } from "../api/types";
+import type { Bottle, BottleScene, Plane, PlaneScene } from "../api/types";
 import { useIdentity } from "../store/identity";
 import { timeAgo } from "../utils/time";
 
@@ -20,7 +20,13 @@ const bottles = ref<Bottle[]>([]);
 const planes = ref<Plane[]>([]);
 const expanded = ref<string | null>(null);
 
-const sceneLabels: Record<PlaneScene, string> = {
+const bottleSceneLabels: Record<BottleScene, string> = {
+  shallow: "浮在浅滩",
+  deep: "漂向深海",
+  drift: "随波逐流",
+};
+
+const planeSceneLabels: Record<PlaneScene, string> = {
   sky: "落在云端",
   window: "停在窗台",
   tree: "挂上树梢",
@@ -115,7 +121,11 @@ function toggle(id: string) {
           <button class="card-main" @click="toggle(entry.id)">
             <header class="card-head">
               <span class="badge" :class="entry.type">
-                {{ entry.type === "bottle" ? "浮笺" : sceneLabels[(entry as Plane).scene] }}
+                {{
+                  entry.type === "bottle"
+                    ? bottleSceneLabels[(entry as Bottle).scene]
+                    : planeSceneLabels[(entry as Plane).scene]
+                }}
               </span>
               <time>{{ timeAgo(entry.created_at) }}</time>
             </header>

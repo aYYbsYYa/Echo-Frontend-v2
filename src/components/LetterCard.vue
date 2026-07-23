@@ -17,8 +17,8 @@ const emit = defineEmits<{
 }>();
 
 const bottleSceneLabels: Record<BottleScene, string> = {
-  shallow: "漂在浅滩",
-  deep: "沉入深海",
+  shallow: "浮在浅滩",
+  deep: "漂向深海",
   drift: "随波逐流",
 };
 
