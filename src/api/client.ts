@@ -5,8 +5,16 @@ import type {
   CapsuleDuration,
   CapsuleListMeta,
   CapsuleMood,
+  EchoConversation,
+  EchoMessage,
+  EchoMode,
+  EchoProfile,
   Identity,
   Plane,
+  SoulDialogue,
+  SoulMatchResult,
+  SoulProfile,
+  SoulStreamEvent,
 } from "./types";
 
 const BASE = "/api";
@@ -33,7 +41,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     /* 非 JSON 响应 */
   }
   if (!res.ok) {
-    throw new ApiError(body?.error?.message ?? `请求失败（${res.status}）`, res.status);
+    // 兼容两种错误形态：{"error": {"message": ...}} 与 {"error": "..."}
+    const shape = body?.error;
+    const text =
+      (typeof shape === "string" ? shape : shape?.message) ?? `请求失败（${res.status}）`;
+    throw new ApiError(text, res.status);
   }
   return body as T;
 }
@@ -44,6 +56,32 @@ function postJson(payload: unknown): RequestInit {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   };
+}
+
+function patchJson(payload: unknown): RequestInit {
+  return {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  };
+}
+
+/**
+ * 解包灵笺画像的存储层嵌套。
+ * 后端 refresh 端点返回完整存储记录（profile_data 多包一层），
+ * 这里逐层剥到带 status 的画像本体为止。
+ */
+function unwrapEchoProfile(raw: unknown): EchoProfile {
+  let node: unknown = raw;
+  while (
+    node &&
+    typeof node === "object" &&
+    !("status" in node) &&
+    "profile_data" in node
+  ) {
+    node = (node as Record<string, unknown>).profile_data;
+  }
+  return (node ?? { status: "insufficient_data", message_count: 0 }) as EchoProfile;
 }
 
 /** 图文发布：带图走 multipart，纯文字走 JSON */
@@ -150,4 +188,141 @@ export const api = {
   capsuleImageUrl(capsuleId: string, userId: string) {
     return `${BASE}/capsules/${encodeURIComponent(capsuleId)}/image?user_id=${encodeURIComponent(userId)}`;
   },
+
+  // ---------- 灵笺（自我对话） ----------
+  createEchoConversation(userId: string, mode: EchoMode = "listen") {
+    return request<{ data: EchoConversation }>(
+      "/echo/conversations",
+      postJson({ user_id: userId, mode }),
+    );
+  },
+  getEchoConversation(conversationId: string) {
+    return request<{ data: EchoConversation }>(
+      `/echo/conversations/${encodeURIComponent(conversationId)}`,
+    );
+  },
+  listEchoConversations(userId: string) {
+    return request<{ data: EchoConversation[] }>(
+      `/echo/users/${encodeURIComponent(userId)}/conversations`,
+    );
+  },
+  sendEchoMessage(conversationId: string, content: string) {
+    return request<{
+      data: { user_message: EchoMessage; assistant_message: EchoMessage };
+    }>(`/echo/conversations/${encodeURIComponent(conversationId)}/messages`, postJson({ content }));
+  },
+  switchEchoMode(conversationId: string, mode: EchoMode) {
+    return request<{ data: EchoConversation }>(
+      `/echo/conversations/${encodeURIComponent(conversationId)}/mode`,
+      patchJson({ mode }),
+    );
+  },
+  getEchoProfile(userId: string) {
+    return request<{ data: unknown }>(
+      `/echo/users/${encodeURIComponent(userId)}/profile`,
+    ).then((res) => ({ data: unwrapEchoProfile(res.data) }));
+  },
+  refreshEchoProfile(userId: string) {
+    return request<{ data: unknown }>(
+      `/echo/users/${encodeURIComponent(userId)}/profile/refresh`,
+      postJson({}),
+    ).then((res) => ({ data: unwrapEchoProfile(res.data) }));
+  },
+
+  // ---------- Agent-to-Agent（灵魂碰撞） ----------
+  getSoulProfile(userId: string, refresh = false) {
+    const query = refresh ? "&refresh=true" : "";
+    return request<{ data: SoulProfile }>(
+      `/agent/profile?user_id=${encodeURIComponent(userId)}${query}`,
+    );
+  },
+  matchSouls(userId: string, limit = 3) {
+    return request<{ data: SoulMatchResult }>("/agent/match", postJson({ user_id: userId, limit }));
+  },
+  runSoulDialogue(userId: string, targetUserId?: string) {
+    return request<{ data: SoulDialogue }>(
+      "/agent/dialogue",
+      postJson(targetUserId ? { user_id: userId, target_user_id: targetUserId } : { user_id: userId }),
+    );
+  },
+  listSoulDialogues(userId: string) {
+    return request<{ data: SoulDialogue[] }>(
+      `/agent/dialogues?user_id=${encodeURIComponent(userId)}`,
+    );
+  },
+  deleteSoulDialogue(userId: string, dialogueId: string) {
+    return request<{ data: { id: string; deleted: boolean } }>(
+      `/agent/dialogues/${encodeURIComponent(dialogueId)}?user_id=${encodeURIComponent(userId)}`,
+      { method: "DELETE" },
+    );
+  },
 };
+
+/**
+ * 逐行读取灵魂碰撞的 NDJSON 流。
+ * 事件按到达顺序交给回调；连接中断或解析失败会抛 ApiError。
+ */
+export async function streamSoulDialogue(
+  userId: string,
+  targetUserId: string | undefined,
+  onEvent: (event: SoulStreamEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/agent/dialogue/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        targetUserId ? { user_id: userId, target_user_id: targetUserId } : { user_id: userId },
+      ),
+      signal,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") return;
+    throw new ApiError("连不上服务器，请确认后端已启动。", 0);
+  }
+  if (!res.ok) {
+    let message = `请求失败（${res.status}）`;
+    try {
+      const body = (await res.json()) as ApiErrorShape;
+      const shape = body?.error;
+      if (typeof shape === "string") message = shape;
+      else if (shape?.message) message = shape.message;
+    } catch {
+      /* 忽略解析失败 */
+    }
+    throw new ApiError(message, res.status);
+  }
+  if (!res.body) throw new ApiError("当前浏览器不支持流式读取。", 0);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let newline = buffer.indexOf("\n");
+    while (newline >= 0) {
+      const line = buffer.slice(0, newline).trim();
+      buffer = buffer.slice(newline + 1);
+      if (line) {
+        try {
+          onEvent(JSON.parse(line) as SoulStreamEvent);
+        } catch {
+          /* 跳过无法解析的行 */
+        }
+      }
+      newline = buffer.indexOf("\n");
+    }
+  }
+  const tail = buffer.trim();
+  if (tail) {
+    try {
+      onEvent(JSON.parse(tail) as SoulStreamEvent);
+    } catch {
+      /* 忽略半截事件 */
+    }
+  }
+}

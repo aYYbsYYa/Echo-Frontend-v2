@@ -74,6 +74,8 @@ function onSent(item: DriftItem) {
           <button :class="{ active: mode === 'ocean' }" @click="switchMode('ocean')">海</button>
           <button :class="{ active: mode === 'sky' }" @click="switchMode('sky')">天</button>
           <button @click="router.push('/forest')">森</button>
+          <button @click="router.push('/echo')">灵</button>
+          <button @click="router.push('/soul')">魂</button>
         </div>
         <button class="me" @click="router.push('/mine')" :aria-label="`查看我的${mode === 'ocean' ? '浮笺' : '飞笺'}`">
           <span class="me-avatar">{{ user?.avatar ?? "匿" }}</span>

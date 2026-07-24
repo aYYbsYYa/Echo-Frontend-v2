@@ -145,6 +145,8 @@ function onOpenClosed() {
           <button @click="switchMode('ocean')">海</button>
           <button @click="switchMode('sky')">天</button>
           <button class="active">森</button>
+          <button @click="router.push('/echo')">灵</button>
+          <button @click="router.push('/soul')">魂</button>
         </div>
         <button class="me" @click="router.push('/mine')" aria-label="查看我的林地">
           <span class="me-avatar">{{ user?.avatar ?? "匿" }}</span>

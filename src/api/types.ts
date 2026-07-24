@@ -95,5 +95,120 @@ export interface CapsuleListMeta {
 }
 
 export interface ApiErrorShape {
-  error?: { message?: string; remaining_seconds?: number };
+  error?: { message?: string; remaining_seconds?: number } | string;
 }
+
+/* ============================================================
+   灵笺（Echo）—— AI 自我对话与洞察
+   ============================================================ */
+
+export type EchoMode = "listen" | "mirror";
+
+export interface EchoMessage {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+  /** 消息产生时所处的模式（后端按模式隔离上下文） */
+  mode?: EchoMode;
+}
+
+export interface EchoConversation {
+  id: string;
+  user_id: string;
+  mode: EchoMode;
+  created_at: string;
+  updated_at: string;
+  messages?: EchoMessage[];
+}
+
+/** 人格画像的结构化内核 */
+export interface EchoPersona {
+  identity: string;
+  traits: string[];
+  emotion_pattern: string[];
+  interests: string[];
+  values: string[];
+}
+
+/**
+ * 人格画像：对话充足与不足是两种形态。
+ * 注意：后端 refresh 端点返回的是完整存储记录（多包一层 profile_data），
+ * client 层会统一解包成本结构。
+ */
+export interface EchoProfile {
+  status: "available" | "insufficient_data" | string;
+  message_count: number;
+  /** insufficient_data 时的说明文案 */
+  summary?: string;
+  profile_data?: {
+    persona: EchoPersona;
+    communication_style: { tone: string };
+  };
+}
+
+/* ============================================================
+   Agent-to-Agent（Soul Echo）—— 灵魂碰撞 Demo
+   ============================================================ */
+
+export interface SoulPersona {
+  identity: string;
+  traits: string[];
+  emotion_pattern: string[];
+  interests: string[];
+  values: string[];
+}
+
+export interface SoulProfile {
+  user_id: string;
+  name: string;
+  history_count: number;
+  persona: SoulPersona;
+  communication_style: { tone: string };
+  generated_by: "ai" | "demo_fallback" | "demo_seed" | string;
+  updated_at?: string;
+}
+
+export interface SoulMatch {
+  user_id: string;
+  agent: string;
+  score: number;
+  reason: string[];
+  preview: string;
+}
+
+export interface SoulMatchResult {
+  id: string;
+  user_id: string;
+  matches: SoulMatch[];
+  created_at: string;
+}
+
+export interface SoulDialogueMessage {
+  round: number;
+  from: string;
+  user_id: string;
+  text: string;
+}
+
+export interface SoulDialogue {
+  id: string;
+  user_id?: string;
+  target_user_id?: string;
+  agent_a: string;
+  agent_b: string;
+  score: number;
+  reason: string[];
+  conversation: SoulDialogueMessage[];
+  echo: string;
+  created_at: string;
+}
+
+/** 流式碰撞的 NDJSON 事件 */
+export type SoulStreamEvent =
+  | { type: "start"; data: { agent_a: string; agent_b: string; score: number; reason: string[] } }
+  | { type: "message"; data: SoulDialogueMessage }
+  | { type: "echo"; data: { echo: string } }
+  | { type: "done"; data: { dialogue_id: string; created_at: string } }
+  | { type: "error"; data: { message: string } };
