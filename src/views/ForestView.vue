@@ -398,7 +398,7 @@ function onOpenClosed() {
   position: fixed;
   left: 0;
   right: 0;
-  top: 68%;
+  top: 62%;
   z-index: 5;
   display: flex;
   justify-content: center;
