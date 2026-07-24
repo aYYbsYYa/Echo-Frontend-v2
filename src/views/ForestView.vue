@@ -428,8 +428,8 @@ function onOpenClosed() {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: 0 20px 1.6vh;
-  min-height: 24vh;
+  padding: 0 20px 8vh;
+  min-height: 32vh;
   pointer-events: none;
 }
 
@@ -516,7 +516,7 @@ function onOpenClosed() {
   gap: clamp(18px, 3.6vw, 46px);
   max-width: 100%;
   overflow-x: auto;
-  padding: 20px 12px 0;
+  padding: 20px 12px 50px;
   scrollbar-width: none;
 }
 

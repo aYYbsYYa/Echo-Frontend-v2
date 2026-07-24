@@ -133,7 +133,7 @@ function onCapsuleClick(entry: Capsule) {
         <div class="who-counts">
           <span><b>{{ bottles.length }}</b> 张浮笺</span>
           <span><b>{{ planes.length }}</b> 张飞笺</span>
-          <span><b>{{ capsules.length }}</b> 张时笺</span>
+          <span><b>{{ capsules.length }}</b> 张心笺</span>
         </div>
       </section>
 
@@ -146,7 +146,7 @@ function onCapsuleClick(entry: Capsule) {
           <PlaneIcon :size="16" /> 飞笺
         </button>
         <button :class="{ active: tab === 'capsule' }" @click="tab = 'capsule'">
-          <TreeIcon :size="16" /> 时笺
+          <TreeIcon :size="16" /> 心笺
         </button>
       </div>
 
