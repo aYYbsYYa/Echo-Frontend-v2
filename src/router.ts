@@ -9,11 +9,11 @@ const MineView = () => import("./views/MineView.vue");
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: "/welcome", name: "welcome", component: WelcomeView, meta: { mode: "ocean" } },
-    { path: "/", name: "ocean", component: HomeView, meta: { mode: "ocean" } },
-    { path: "/sky", name: "sky", component: HomeView, meta: { mode: "sky" } },
+    { path: "/welcome", name: "welcome", component: WelcomeView, meta: { mode: "sky" } },
+    { path: "/", name: "sky", component: HomeView, meta: { mode: "sky" } },
+    { path: "/ocean", name: "ocean", component: HomeView, meta: { mode: "ocean" } },
     { path: "/forest", name: "forest", component: ForestView, meta: { mode: "forest" } },
-    { path: "/mine", name: "mine", component: MineView, meta: { mode: "ocean" } },
+    { path: "/mine", name: "mine", component: MineView, meta: { mode: "sky" } },
     { path: "/:pathMatch(.*)*", redirect: "/" },
   ],
 });

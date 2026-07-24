@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import OceanBackdrop from "../components/OceanBackdrop.vue";
-import BottleIcon from "../components/BottleIcon.vue";
+import SkyBackdrop from "../components/SkyBackdrop.vue";
+import PlaneIcon from "../components/PlaneIcon.vue";
 import { api } from "../api/client";
 import { generateUserId } from "../utils/id";
 import { useIdentity } from "../store/identity";
@@ -64,13 +64,13 @@ async function submit() {
 
 <template>
   <div class="welcome" :class="{ leaving }">
-    <OceanBackdrop dim />
+    <SkyBackdrop dim />
 
     <main class="panel glass-card">
       <header class="brand">
-        <BottleIcon :size="40" class="brand-icon" />
+        <PlaneIcon :size="40" class="brand-icon" />
         <h1 class="serif">Echo · 回响</h1>
-        <p>匿名的海，温柔的回声</p>
+        <p>匿名的风，温柔的问候</p>
       </header>
 
       <form class="form" @submit.prevent="submit">
@@ -115,7 +115,7 @@ async function submit() {
         </div>
 
         <button class="btn btn-primary embark" type="submit" :disabled="!canSubmit">
-          {{ submitting ? "正在启程……" : "启程，去海边" }}
+          {{ submitting ? "正在启程……" : "启程，去云端" }}
         </button>
 
         <p class="note">身份只保存在这台设备上，匿名且无法被他人修改。</p>
@@ -163,7 +163,7 @@ async function submit() {
 }
 
 .brand-icon {
-  color: var(--teal);
+  color: #ffd9ae;
   animation: float-y 4.5s ease-in-out infinite;
 }
 

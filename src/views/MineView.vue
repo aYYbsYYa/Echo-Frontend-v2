@@ -17,7 +17,7 @@ const router = useRouter();
 const identity = useIdentity();
 const user = computed(() => identity.state.user);
 
-const tab = ref<"bottle" | "plane" | "capsule">("bottle");
+const tab = ref<"bottle" | "plane" | "capsule">("plane");
 const loading = ref(true);
 const loadError = ref("");
 const bottles = ref<Bottle[]>([]);
@@ -114,9 +114,9 @@ function onCapsuleClick(entry: Capsule) {
     <header class="topbar">
       <button class="back" @click="router.push('/')">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M15 18l-6-6 6-6" />
+          <path d="m15 18l-6-6 6-6" />
         </svg>
-        回到海边
+        回到云端
       </button>
       <h1 class="serif">我的海与风</h1>
       <span class="spacer" />
@@ -131,9 +131,9 @@ function onCapsuleClick(entry: Capsule) {
           <span>{{ user.region || "未标注" }} · 匿名旅人</span>
         </div>
         <div class="who-counts">
-          <span><b>{{ bottles.length }}</b> 只瓶</span>
+          <span><b>{{ bottles.length }}</b> 张浮笺</span>
           <span><b>{{ planes.length }}</b> 张飞笺</span>
-          <span><b>{{ capsules.length }}</b> 棵树</span>
+          <span><b>{{ capsules.length }}</b> 张时笺</span>
         </div>
       </section>
 
@@ -146,7 +146,7 @@ function onCapsuleClick(entry: Capsule) {
           <PlaneIcon :size="16" /> 飞笺
         </button>
         <button :class="{ active: tab === 'capsule' }" @click="tab = 'capsule'">
-          <TreeIcon :size="16" /> 树洞
+          <TreeIcon :size="16" /> 时笺
         </button>
       </div>
 

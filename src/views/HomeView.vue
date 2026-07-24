@@ -35,7 +35,7 @@ const actions = computed(() =>
 
 function switchMode(next: "ocean" | "sky") {
   if (next === mode.value) return;
-  router.push(next === "ocean" ? "/" : "/sky");
+  router.push(next === "ocean" ? "/ocean" : "/");
 }
 
 function onSent(item: DriftItem) {
