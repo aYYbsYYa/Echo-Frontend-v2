@@ -2,22 +2,27 @@
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import OceanBackdrop from "../components/OceanBackdrop.vue";
+import SkyBackdrop from "../components/SkyBackdrop.vue";
+import ForestBackdrop from "../components/ForestBackdrop.vue";
 import BottleIcon from "../components/BottleIcon.vue";
 import PlaneIcon from "../components/PlaneIcon.vue";
+import TreeIcon from "../components/TreeIcon.vue";
 import { api } from "../api/client";
-import type { Bottle, BottleScene, Plane, PlaneScene } from "../api/types";
+import type { Bottle, BottleScene, Capsule, Plane, PlaneScene } from "../api/types";
 import { useIdentity } from "../store/identity";
+import { pushToast } from "../store/toast";
 import { timeAgo } from "../utils/time";
 
 const router = useRouter();
 const identity = useIdentity();
 const user = computed(() => identity.state.user);
 
-const tab = ref<"bottle" | "plane">("bottle");
+const tab = ref<"bottle" | "plane" | "capsule">("bottle");
 const loading = ref(true);
 const loadError = ref("");
 const bottles = ref<Bottle[]>([]);
 const planes = ref<Plane[]>([]);
+const capsules = ref<Capsule[]>([]);
 const expanded = ref<string | null>(null);
 
 const bottleSceneLabels: Record<BottleScene, string> = {
@@ -41,9 +46,14 @@ async function load() {
   loading.value = true;
   loadError.value = "";
   try {
-    const [b, p] = await Promise.all([api.myBottles(user.value.id), api.myPlanes(user.value.id)]);
+    const [b, p, c] = await Promise.all([
+      api.myBottles(user.value.id),
+      api.myPlanes(user.value.id),
+      api.myCapsules(user.value.id),
+    ]);
     bottles.value = b.data;
     planes.value = p.data;
+    capsules.value = c.data;
   } catch (error) {
     loadError.value = error instanceof Error ? error.message : "加载失败，请再试一次。";
   } finally {
@@ -54,11 +64,52 @@ async function load() {
 function toggle(id: string) {
   expanded.value = expanded.value === id ? null : id;
 }
+
+/* ---------------- 时光胶囊 ---------------- */
+
+type CapsuleState = "locked" | "ready" | "opened";
+
+function capsuleState(entry: Capsule): CapsuleState {
+  if (entry.opened_at) return "opened";
+  return entry.remaining_seconds <= 0 || entry.is_unlocked ? "ready" : "locked";
+}
+
+function capsuleStateLabel(entry: Capsule): string {
+  const state = capsuleState(entry);
+  if (state === "locked") return "沉淀中";
+  if (state === "ready") return "可以打开了";
+  return "已开启";
+}
+
+function capsuleRemaining(entry: Capsule): string {
+  const seconds = entry.remaining_seconds;
+  if (seconds >= 86_400) return `还剩 ${Math.floor(seconds / 86_400)} 天`;
+  if (seconds >= 3600) return `还剩 ${Math.floor(seconds / 3600)} 小时`;
+  if (seconds >= 60) return `还剩 ${Math.floor(seconds / 60)} 分钟`;
+  return `还剩 ${Math.max(1, seconds)} 秒`;
+}
+
+function onCapsuleClick(entry: Capsule) {
+  const state = capsuleState(entry);
+  if (state === "locked") {
+    pushToast(`${capsuleRemaining(entry)}。时间没到，谁也打不开。`, "info");
+    return;
+  }
+  if (state === "ready") {
+    router.push("/forest");
+  }
+  // 已开启的信直接展示在卡片上，无需额外操作
+}
 </script>
 
 <template>
   <div class="mine">
-    <OceanBackdrop dim />
+    <!-- 背景随页签切换：浮笺=海 / 飞笺=天 / 树洞=森 -->
+    <Transition name="scene">
+      <OceanBackdrop v-if="tab === 'bottle'" dim key="ocean" />
+      <SkyBackdrop v-else-if="tab === 'plane'" dim key="sky" />
+      <ForestBackdrop v-else dim key="forest" />
+    </Transition>
 
     <header class="topbar">
       <button class="back" @click="router.push('/')">
@@ -82,6 +133,7 @@ function toggle(id: string) {
         <div class="who-counts">
           <span><b>{{ bottles.length }}</b> 只瓶</span>
           <span><b>{{ planes.length }}</b> 张飞笺</span>
+          <span><b>{{ capsules.length }}</b> 棵树</span>
         </div>
       </section>
 
@@ -92,6 +144,9 @@ function toggle(id: string) {
         </button>
         <button :class="{ active: tab === 'plane' }" @click="tab = 'plane'">
           <PlaneIcon :size="16" /> 飞笺
+        </button>
+        <button :class="{ active: tab === 'capsule' }" @click="tab = 'capsule'">
+          <TreeIcon :size="16" /> 树洞
         </button>
       </div>
 
@@ -105,8 +160,15 @@ function toggle(id: string) {
         <button class="btn btn-ghost" @click="load">再试一次</button>
       </div>
 
-      <!-- 空态 -->
-      <div v-else-if="list.length === 0" class="hint-box">
+      <!-- 空态：胶囊 -->
+      <div v-else-if="tab === 'capsule' && capsules.length === 0" class="hint-box">
+        <TreeIcon :size="42" class="hint-icon forest-icon" />
+        <p>你的林地还空着，埋一颗时光种子吧。</p>
+        <button class="btn btn-primary" @click="router.push('/forest')">去森林里</button>
+      </div>
+
+      <!-- 空态：浮笺/飞笺 -->
+      <div v-else-if="tab !== 'capsule' && list.length === 0" class="hint-box">
         <BottleIcon v-if="tab === 'bottle'" :size="42" class="hint-icon" />
         <PlaneIcon v-else :size="42" class="hint-icon" />
         <p>{{ tab === "bottle" ? "你还没有扔出浮笺。" : "你还没有折过飞笺。" }}</p>
@@ -115,7 +177,53 @@ function toggle(id: string) {
         </button>
       </div>
 
-      <!-- 列表 -->
+      <!-- 列表：胶囊 -->
+      <TransitionGroup v-else-if="tab === 'capsule'" name="cards" tag="section" class="cards">
+        <article
+          v-for="entry in capsules"
+          :key="entry.id"
+          class="card glass-card"
+          :class="{ clickable: capsuleState(entry) !== 'opened' }"
+        >
+          <button class="card-main" @click="onCapsuleClick(entry)">
+            <header class="card-head">
+              <span class="badge capsule" :class="capsuleState(entry)">
+                {{ capsuleStateLabel(entry) }}
+              </span>
+              <time>写于 {{ timeAgo(entry.created_at) }}</time>
+            </header>
+            <p v-if="capsuleState(entry) === 'locked'" class="card-content capsule-sealed">
+              这封信还在时间里沉睡，{{ capsuleRemaining(entry) }}。
+            </p>
+            <p v-else-if="capsuleState(entry) === 'ready'" class="card-content capsule-ready-text">
+              时间到了。去森林里，点开那棵发光的树。
+            </p>
+            <p v-else class="card-content">{{ entry.content }}</p>
+            <img
+              v-if="entry.has_image && capsuleState(entry) === 'opened' && user"
+              class="capsule-photo"
+              :src="api.capsuleImageUrl(entry.id, user.id)"
+              alt="随信封存的照片"
+              loading="lazy"
+            />
+            <footer class="card-stats">
+              <span v-if="entry.has_image && capsuleState(entry) === 'locked'" class="photo-hint">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="5" width="18" height="14" rx="2.5" />
+                  <circle cx="9" cy="10" r="1.6" />
+                  <path d="m5 17 4.5-4.5 3 3L16 12l3 3" />
+                </svg>
+                有一张照片在沉睡
+              </span>
+              <span>封存 {{ entry.duration_label }}</span>
+              <span v-if="capsuleState(entry) === 'opened'">沉淀了 {{ entry.waited_label }}</span>
+              <span v-if="capsuleState(entry) === 'ready'">点击前往森林 →</span>
+            </footer>
+          </button>
+        </article>
+      </TransitionGroup>
+
+      <!-- 列表：浮笺/飞笺 -->
       <TransitionGroup v-else name="cards" tag="section" class="cards">
         <article v-for="entry in list" :key="entry.id" class="card glass-card">
           <button class="card-main" @click="toggle(entry.id)">
@@ -170,6 +278,20 @@ function toggle(id: string) {
   position: relative;
   min-height: 100vh;
   min-height: 100dvh;
+}
+
+/* 背景随页签淡入淡出 */
+.scene-enter-active {
+  transition: opacity 0.55s ease;
+}
+
+.scene-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.scene-enter-from,
+.scene-leave-to {
+  opacity: 0;
 }
 
 /* ---------------- 顶栏 ---------------- */
@@ -344,6 +466,14 @@ function toggle(id: string) {
   overflow: hidden;
 }
 
+.card.clickable .card-main {
+  cursor: pointer;
+}
+
+.card:not(.clickable) .card-main {
+  cursor: default;
+}
+
 .card-main {
   display: block;
   width: 100%;
@@ -373,6 +503,53 @@ function toggle(id: string) {
 .badge.plane {
   color: #ffd9ae;
   border: 1px solid rgba(255, 217, 174, 0.4);
+}
+
+.badge.capsule.locked {
+  color: #a8d8a0;
+  border: 1px solid rgba(168, 216, 160, 0.35);
+}
+
+.badge.capsule.ready {
+  color: #e4f7cf;
+  border: 1px solid rgba(216, 247, 168, 0.6);
+  background: rgba(216, 247, 168, 0.1);
+}
+
+.badge.capsule.opened {
+  color: var(--ink-dim);
+  border: 1px solid var(--glass-border);
+}
+
+.forest-icon {
+  color: rgba(168, 216, 160, 0.55);
+}
+
+.capsule-sealed {
+  color: var(--ink-faint);
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+
+.capsule-ready-text {
+  color: #e4f7cf;
+  letter-spacing: 0.04em;
+}
+
+.capsule-photo {
+  display: block;
+  max-width: min(280px, 100%);
+  margin: 4px 14px 4px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 22px rgba(2, 12, 9, 0.35);
+}
+
+.photo-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #a8d8a0;
 }
 
 .card-head time {

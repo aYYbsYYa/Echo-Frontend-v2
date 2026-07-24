@@ -1,4 +1,13 @@
-import type { ApiErrorShape, Bottle, Identity, Plane } from "./types";
+import type {
+  ApiErrorShape,
+  Bottle,
+  Capsule,
+  CapsuleDuration,
+  CapsuleListMeta,
+  CapsuleMood,
+  Identity,
+  Plane,
+} from "./types";
 
 const BASE = "/api";
 
@@ -110,5 +119,35 @@ export const api = {
   },
   myPlanes(userId: string) {
     return request<{ data: Plane[] }>(`/planes/mine/${encodeURIComponent(userId)}`);
+  },
+
+  // ---------- 时光胶囊（森林） ----------
+  buryCapsule(
+    userId: string,
+    content: string,
+    duration: CapsuleDuration,
+    mood: CapsuleMood | null,
+    customSeconds?: number,
+    image?: string,
+  ) {
+    return request<{ data: Capsule }>(
+      "/capsules",
+      postJson({ user_id: userId, content, duration, mood, custom_seconds: customSeconds, image }),
+    );
+  },
+  myCapsules(userId: string) {
+    return request<{ data: Capsule[]; meta: CapsuleListMeta }>(
+      `/capsules/mine/${encodeURIComponent(userId)}`,
+    );
+  },
+  openCapsule(capsuleId: string, userId: string) {
+    return request<{ data: Capsule }>(
+      `/capsules/${encodeURIComponent(capsuleId)}/open`,
+      postJson({ user_id: userId }),
+    );
+  },
+  /** 配图 URL（浏览器直接 <img> 加载；服务端做解锁校验） */
+  capsuleImageUrl(capsuleId: string, userId: string) {
+    return `${BASE}/capsules/${encodeURIComponent(capsuleId)}/image?user_id=${encodeURIComponent(userId)}`;
   },
 };
