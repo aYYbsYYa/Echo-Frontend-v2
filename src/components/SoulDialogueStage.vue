@@ -38,13 +38,11 @@ const failed = ref("");
 const meta = ref<StageMeta | null>(null);
 const messages = ref<StageMessage[]>([]);
 const thinkingFor = ref<string | null>(null);
-const echoVisible = ref(false);
-const echoText = ref("");
 const scrollBox = ref<HTMLElement>();
 
 let controller: AbortController | null = null;
 let aborted = false;
-let cachedEcho = "";
+let echoReceived = false;
 const queue: SoulStreamEvent[] = [];
 let pumping = false;
 
@@ -67,7 +65,7 @@ function finishOnce() {
 }
 
 function onEvent(event: SoulStreamEvent) {
-  if (event.type === "echo") cachedEcho = event.data.echo.trim();
+  if (event.type === "echo") echoReceived = true;
   queue.push(event);
   void pump();
 }
@@ -105,19 +103,11 @@ async function pump() {
         msg.typing = false;
         await sleep(340);
       } else if (event.type === "echo") {
-        const text = cachedEcho || event.data.echo.trim();
-        if (!text) {
-          failed.value = "Yeve Echo 没有返回总结，请重新尝试。";
-          continue;
-        }
-        echoText.value = text;
-        echoVisible.value = true;
-        await scrollStage("smooth");
-        // echo 已是完整总结，展示后即可完成；同时兜底 done 丢失。
+        // 总结只写入历史回响，不在舞台展示；收到即视为完成，同时兜底 done 丢失。
         finishOnce();
       } else if (event.type === "done") {
-        // 部分代理会先送达 done；必须等非空 echo 真正展示后才能进入完成态。
-        if (echoText.value) finishOnce();
+        // 后端发送 done 时对话已保存；echo 已在上一轮完成时此处为幂等。
+        finishOnce();
       } else if (event.type === "error") {
         failed.value = event.data.message || "这次灵魂碰撞意外中断，请重新尝试。";
       }
@@ -165,8 +155,8 @@ onMounted(() => {
   streamSoulDialogue(props.userId, props.targetUserId, onEvent, controller.signal).catch(
     (error) => {
       if (aborted) return;
-      // echo 已收到时继续由队列展示并完成，不把随后发生的流中断判为失败。
-      if (cachedEcho) return;
+      // echo 已收到时视为完成，不把随后发生的流中断判为失败。
+      if (echoReceived) return;
       failed.value = error instanceof Error ? error.message : "连接中断，请重新尝试。";
     },
   );
@@ -275,15 +265,6 @@ onBeforeUnmount(() => {
                 </p>
               </div>
             </div>
-
-            <!-- 最终回响：轮到 echo 时一次性展示完整总结 -->
-            <Transition name="echo-in">
-              <div v-if="echoVisible" class="echo-card">
-                <span class="echo-halo" />
-                <p class="echo-label serif">最终回响</p>
-                <p class="echo-text serif">{{ echoText }}</p>
-              </div>
-            </Transition>
           </template>
         </div>
 
@@ -851,68 +832,6 @@ onBeforeUnmount(() => {
   100% {
     opacity: 0;
   }
-}
-
-/* ---------------- 最终回响 ---------------- */
-
-.echo-card {
-  position: relative;
-  align-self: center;
-  width: min(560px, 94%);
-  margin-top: 10px;
-  padding: 26px 30px 24px;
-  border-radius: 22px;
-  text-align: center;
-  background:
-    linear-gradient(rgba(40, 26, 10, 0.72), rgba(30, 20, 12, 0.72)) padding-box,
-    linear-gradient(140deg, rgba(247, 202, 146, 0.9), rgba(240, 181, 122, 0.25) 45%, rgba(127, 212, 201, 0.7)) border-box;
-  border: 1px solid transparent;
-  box-shadow:
-    0 24px 60px rgba(2, 5, 12, 0.6),
-    0 0 44px rgba(240, 181, 122, 0.16);
-  overflow: hidden;
-}
-
-.echo-in-enter-active {
-  transition:
-    opacity 0.7s var(--ease-out),
-    transform 0.7s var(--ease-out);
-}
-.echo-in-enter-from {
-  opacity: 0;
-  transform: translateY(20px) scale(0.96);
-}
-
-.echo-halo {
-  position: absolute;
-  top: -70px;
-  left: 50%;
-  width: 260px;
-  height: 140px;
-  transform: translateX(-50%);
-  border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(247, 202, 146, 0.22), transparent 70%);
-  filter: blur(10px);
-  pointer-events: none;
-}
-
-.echo-label {
-  position: relative;
-  margin: 0;
-  font-size: 13px;
-  letter-spacing: 0.4em;
-  text-indent: 0.4em;
-  color: #f0d8a8;
-}
-
-.echo-text {
-  position: relative;
-  margin: 16px 0 0;
-  font-size: 17px;
-  line-height: 2;
-  letter-spacing: 0.06em;
-  color: #f8ecd4;
-  white-space: pre-wrap;
 }
 
 /* ---------------- 底栏 ---------------- */
