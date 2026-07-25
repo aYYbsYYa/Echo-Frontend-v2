@@ -39,13 +39,6 @@ const commentOpen = ref(false);
 const draft = ref("");
 const zoomed = ref(false);
 
-function reportImageState(event: Event, state: "load" | "error") {
-  const image = event.currentTarget as HTMLImageElement;
-  // #region debug-point C-D:image-state
-  fetch("http://127.0.0.1:7777/event", { method: "POST", body: JSON.stringify({ sessionId: "image-cache-304", runId: "pre-fix", hypothesisId: "C-D", location: "LetterCard.vue:reportImageState", msg: "[DEBUG] Letter image state", data: { state, rawUrl: props.item.image_url, currentSrc: image.currentSrc, naturalWidth: image.naturalWidth, complete: image.complete } }) }).catch(() => {});
-  // #endregion
-}
-
 function sendComment() {
   const text = draft.value.trim();
   if (!text || props.commentPending) return;
