@@ -18,6 +18,12 @@ import type {
 } from "./types";
 
 const BASE = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "");
+const API_ORIGIN = new URL(BASE, window.location.origin).origin;
+
+export function resolveMediaUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path;
+  return new URL(path, API_ORIGIN).toString();
+}
 
 export class ApiError extends Error {
   status: number;

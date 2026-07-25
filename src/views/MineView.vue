@@ -7,7 +7,7 @@ import ForestBackdrop from "../components/ForestBackdrop.vue";
 import BottleIcon from "../components/BottleIcon.vue";
 import PlaneIcon from "../components/PlaneIcon.vue";
 import TreeIcon from "../components/TreeIcon.vue";
-import { api } from "../api/client";
+import { api, resolveMediaUrl } from "../api/client";
 import type { Bottle, BottleScene, Capsule, Plane, PlaneScene } from "../api/types";
 import { useIdentity } from "../store/identity";
 import { pushToast } from "../store/toast";
@@ -238,7 +238,7 @@ function onCapsuleClick(entry: Capsule) {
               <time>{{ timeAgo(entry.created_at) }}</time>
             </header>
             <p class="card-content">{{ entry.content }}</p>
-            <img v-if="entry.image_url" :src="entry.image_url" class="card-thumb" alt="附图" loading="lazy" />
+            <img v-if="entry.image_url" :src="resolveMediaUrl(entry.image_url)" class="card-thumb" alt="附图" loading="lazy" />
             <footer class="card-stats">
               <span :title="entry.type === 'bottle' ? '被捞起的次数' : '被接住的次数'">
                 {{ entry.type === "bottle" ? "被拾起" : "停留" }} {{ entry.views }} 次
