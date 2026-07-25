@@ -38,14 +38,13 @@ const failed = ref("");
 const meta = ref<StageMeta | null>(null);
 const messages = ref<StageMessage[]>([]);
 const thinkingFor = ref<string | null>(null);
-/** 收到 echo 事件即展开卡片；打字期间 echoTyping 为 true */
 const echoVisible = ref(false);
 const echoText = ref("");
-const echoTyping = ref(false);
 const scrollBox = ref<HTMLElement>();
 
 let controller: AbortController | null = null;
 let aborted = false;
+let cachedEcho = "";
 const queue: SoulStreamEvent[] = [];
 let pumping = false;
 
@@ -61,11 +60,14 @@ async function scrollStage(behavior: ScrollBehavior = "auto") {
   if (box) box.scrollTo({ top: box.scrollHeight, behavior });
 }
 
+function finishOnce() {
+  if (finished.value || failed.value || aborted) return;
+  finished.value = true;
+  emit("finished");
+}
+
 function onEvent(event: SoulStreamEvent) {
-  if (event.type === "echo") {
-    echoVisible.value = true;
-    void scrollStage("smooth");
-  }
+  if (event.type === "echo") cachedEcho = event.data.echo.trim();
   queue.push(event);
   void pump();
 }
@@ -103,40 +105,27 @@ async function pump() {
         msg.typing = false;
         await sleep(340);
       } else if (event.type === "echo") {
-        // 卡片在事件入队时已经展开；轮到 echo 播放时再开始逐字显影
+        const text = cachedEcho || event.data.echo.trim();
+        if (!text) {
+          failed.value = "Yeve Echo 没有返回总结，请重新尝试。";
+          continue;
+        }
+        echoText.value = text;
+        echoVisible.value = true;
         await scrollStage("smooth");
-        await sleep(reducedMotion ? 150 : 700);
-        echoText.value = "";
-        echoTyping.value = true;
-        for (const ch of event.data.echo) {
-          if (aborted) return;
-          echoText.value += ch;
-          if (echoText.value.length % 2 === 0) await scrollStage();
-          if (!reducedMotion) await sleep(38);
-        }
-        echoTyping.value = false;
-        scrollStage();
-        // echo 显影完成后，才允许"已收进历史"的提示浮现
-        await sleep(250);
-        // 若流在 echo 后中断导致 done 丢失，echo 打完即为完成兜底
-        if (!finished.value && !failed.value) {
-          finished.value = true;
-          emit("finished");
-        }
+        // echo 已是完整总结，展示后即可完成；同时兜底 done 丢失。
+        finishOnce();
       } else if (event.type === "done") {
-        // echo 与 done 可能同包到达：等 echo 显影结束再亮"已收进历史"
-        while (echoTyping.value && !aborted) {
-          await sleep(60);
-        }
-        if (aborted) return;
-        finished.value = true;
-        emit("finished");
+        // 部分代理会先送达 done；必须等非空 echo 真正展示后才能进入完成态。
+        if (echoText.value) finishOnce();
       } else if (event.type === "error") {
         failed.value = event.data.message || "这次灵魂碰撞意外中断，请重新尝试。";
       }
     }
   } finally {
     pumping = false;
+    // 修复事件恰好在 pump 退出窗口入队时丢失唤醒的竞态。
+    if (queue.length > 0 && !aborted) void pump();
   }
 }
 
@@ -176,8 +165,8 @@ onMounted(() => {
   streamSoulDialogue(props.userId, props.targetUserId, onEvent, controller.signal).catch(
     (error) => {
       if (aborted) return;
-      // echo 已到达但流被中断（如同包 abort）：echo 打字仍会完成，不判失败
-      if (echoVisible.value) return;
+      // echo 已收到时继续由队列展示并完成，不把随后发生的流中断判为失败。
+      if (cachedEcho) return;
       failed.value = error instanceof Error ? error.message : "连接中断，请重新尝试。";
     },
   );
@@ -287,15 +276,12 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <!-- 最终回响：收到 echo 事件即展开，随后逐字显影 -->
+            <!-- 最终回响：轮到 echo 时一次性展示完整总结 -->
             <Transition name="echo-in">
               <div v-if="echoVisible" class="echo-card">
                 <span class="echo-halo" />
                 <p class="echo-label serif">最终回响</p>
-                <p v-if="!echoText && echoTyping === false" class="echo-brewing-text">
-                  Echo Agent 正在聆听全部表达……
-                </p>
-                <p v-else class="echo-text serif">{{ echoText }}<i v-if="echoTyping" class="caret light" /></p>
+                <p class="echo-text serif">{{ echoText }}</p>
               </div>
             </Transition>
           </template>
@@ -856,10 +842,6 @@ onBeforeUnmount(() => {
   animation: caret-blink 0.8s steps(1) infinite;
 }
 
-.caret.light {
-  background: #ffe9c4;
-}
-
 @keyframes caret-blink {
   0%,
   49% {
@@ -921,25 +903,6 @@ onBeforeUnmount(() => {
   letter-spacing: 0.4em;
   text-indent: 0.4em;
   color: #f0d8a8;
-}
-
-.echo-brewing-text {
-  position: relative;
-  margin: 16px 0 0;
-  font-size: 13px;
-  letter-spacing: 0.14em;
-  color: var(--ink-faint);
-  animation: brewing-breathe 1.6s ease-in-out infinite;
-}
-
-@keyframes brewing-breathe {
-  0%,
-  100% {
-    opacity: 0.5;
-  }
-  50% {
-    opacity: 1;
-  }
 }
 
 .echo-text {

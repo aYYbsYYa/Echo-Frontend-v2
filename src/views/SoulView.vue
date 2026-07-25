@@ -17,13 +17,6 @@ const user = computed(() => identity.state.user);
 
 const soulUserId = computed(() => user.value?.id ?? "");
 
-const DEFAULT_AGENTS = [
-  { id: "sora", name: "Sora", color: "#d8bcf0" },
-  { id: "luna", name: "Luna", color: "#e9a2a2" },
-  { id: "kai", name: "Kai", color: "#7fd4c9" },
-];
-const selectedAgentId = ref("sora");
-
 /* ---------------- 灵魂画像 ---------------- */
 
 const profile = ref<SoulProfile | null>(null);
@@ -167,18 +160,20 @@ function onStageClose(completed: boolean) {
 
 const historyList = ref<SoulDialogue[]>([]);
 const historyLoading = ref(true);
+const historyError = ref("");
 const expandedId = ref<string | null>(null);
 const confirmingDelete = ref<string | null>(null);
 const deleting = ref(false);
 
 async function loadHistory() {
   historyLoading.value = true;
+  historyError.value = "";
   try {
     if (!soulUserId.value) return;
     const { data } = await api.listSoulDialogues(soulUserId.value);
     historyList.value = data;
-  } catch {
-    /* 历史失败不打断页面 */
+  } catch (error) {
+    historyError.value = error instanceof Error ? error.message : "历史回响暂时无法抵达。";
   } finally {
     historyLoading.value = false;
   }
@@ -260,24 +255,6 @@ function goto(path: string) {
       <section class="hero">
         <h1 class="serif">让灵魂，先你一步相遇</h1>
         <p class="sub">Soul Agent 是你长期表达的回声 —— 让它们替你，去星空中碰碰面</p>
-      </section>
-
-      <section class="chooser">
-        <p class="chooser-label">选择一位默认 Soul Agent</p>
-        <div class="soul-chips">
-          <button
-            v-for="agent in DEFAULT_AGENTS"
-            :key="agent.id"
-            class="soul-chip"
-            :class="{ active: selectedAgentId === agent.id }"
-            :style="{ '--soul-color': agent.color }"
-            @click="selectedAgentId = agent.id"
-          >
-            <span class="chip-orb" />
-            {{ agent.name }}
-          </button>
-        </div>
-        <p class="chooser-note">你的 Soul Agent 将与选中的默认 Agent 进行对话</p>
       </section>
 
       <!-- 灵魂画像 -->
@@ -404,6 +381,11 @@ function goto(path: string) {
         <div v-if="historyLoading" class="panel-hint">
           <span class="loader" />
           <p>正在打捞过往的回响……</p>
+        </div>
+
+        <div v-else-if="historyError" class="panel-hint">
+          <p>{{ historyError }}</p>
+          <button class="btn btn-ghost" @click="loadHistory">再试一次</button>
         </div>
 
         <p v-else-if="historyList.length === 0" class="history-empty">
@@ -601,149 +583,6 @@ function goto(path: string) {
   text-indent: 0.24em;
   color: var(--ink-dim);
   animation: hero-in 1s var(--ease-out) 0.25s backwards;
-}
-
-/* ---------------- 灵魂选择 ---------------- */
-
-.chooser {
-  text-align: center;
-  animation: hero-in 0.9s var(--ease-out) 0.35s backwards;
-}
-
-.chooser-label {
-  margin: 0 0 14px;
-  font-size: 12.5px;
-  letter-spacing: 0.28em;
-  text-indent: 0.28em;
-  color: var(--ink-faint);
-}
-
-.soul-chips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-}
-
-.soul-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  padding: 10px 20px 10px 14px;
-  border-radius: 999px;
-  font-size: 14.5px;
-  letter-spacing: 0.1em;
-  color: var(--ink-dim);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(10px);
-  /* 错峰漂浮：用独立的 translate 属性，不与 hover 的 transform 打架 */
-  animation: chip-bob 4.6s ease-in-out infinite;
-  transition:
-    background 0.3s ease,
-    color 0.3s ease,
-    border-color 0.3s ease,
-    transform 0.3s var(--ease-spring);
-}
-
-.soul-chip:nth-child(2) {
-  animation-delay: -1.15s;
-}
-
-.soul-chip:nth-child(3) {
-  animation-delay: -2.3s;
-}
-
-.soul-chip:nth-child(4) {
-  animation-delay: -3.45s;
-}
-
-@keyframes chip-bob {
-  0%,
-  100% {
-    translate: 0 0;
-  }
-  50% {
-    translate: 0 -6px;
-  }
-}
-
-.soul-chip:hover {
-  animation-play-state: paused;
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--ink);
-  transform: translateY(-2px);
-}
-
-.chip-orb {
-  position: relative;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 36% 30%, #fff, var(--soul-color) 58%);
-  animation: orb-pulse 3s ease-in-out infinite;
-}
-
-.soul-chip:nth-child(2) .chip-orb {
-  animation-delay: -0.75s;
-}
-
-.soul-chip:nth-child(3) .chip-orb {
-  animation-delay: -1.5s;
-}
-
-.soul-chip:nth-child(4) .chip-orb {
-  animation-delay: -2.25s;
-}
-
-@keyframes orb-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 7px 2px color-mix(in srgb, var(--soul-color) 50%, transparent);
-    scale: 0.92;
-  }
-  50% {
-    box-shadow: 0 0 14px 5px color-mix(in srgb, var(--soul-color) 72%, transparent);
-    scale: 1.08;
-  }
-}
-
-.soul-chip.active {
-  color: var(--ink);
-  border-color: color-mix(in srgb, var(--soul-color) 60%, transparent);
-  background: color-mix(in srgb, var(--soul-color) 14%, transparent);
-}
-
-/* 被唤醒的灵魂：更快的呼吸 + 一圈圈荡开的涟漪 */
-.soul-chip.active .chip-orb {
-  animation-duration: 1.9s;
-}
-
-.soul-chip.active .chip-orb::after {
-  content: "";
-  position: absolute;
-  inset: -7px;
-  border-radius: 50%;
-  border: 1.5px solid color-mix(in srgb, var(--soul-color) 65%, transparent);
-  animation: orb-ripple 2.2s ease-out infinite;
-}
-
-@keyframes orb-ripple {
-  0% {
-    transform: scale(0.55);
-    opacity: 0.95;
-  }
-  100% {
-    transform: scale(1.7);
-    opacity: 0;
-  }
-}
-
-.chooser-note {
-  margin: 14px 0 0;
-  font-size: 12px;
-  letter-spacing: 0.16em;
-  color: var(--ink-faint);
 }
 
 /* ---------------- 面板通用 ---------------- */
