@@ -10,8 +10,9 @@ const SoulView = () => import("./views/SoulView.vue");
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: "/welcome", redirect: "/ocean" },
-    { path: "/", name: "sky", component: HomeView, meta: { mode: "sky" } },
+    { path: "/", redirect: "/echo" },
+    { path: "/welcome", redirect: "/echo" },
+    { path: "/sky", name: "sky", component: HomeView, meta: { mode: "sky" } },
     { path: "/ocean", name: "ocean", component: HomeView, meta: { mode: "ocean" } },
     { path: "/forest", name: "forest", component: ForestView, meta: { mode: "forest" } },
     { path: "/mine", name: "mine", component: MineView, meta: { mode: "sky" } },
@@ -19,7 +20,7 @@ export const router = createRouter({
     { path: "/echo", name: "echo", component: EchoView, meta: { mode: "sky" } },
     /** 灵魂回响：Agent-to-Agent 碰撞 */
     { path: "/soul", name: "soul", component: SoulView, meta: { mode: "sky" } },
-    { path: "/:pathMatch(.*)*", redirect: "/" },
+    { path: "/:pathMatch(.*)*", redirect: "/echo" },
   ],
 });
 

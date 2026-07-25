@@ -7,6 +7,7 @@ import BottleIcon from "../components/BottleIcon.vue";
 import PlaneIcon from "../components/PlaneIcon.vue";
 import ComposeSheet from "../components/ComposeSheet.vue";
 import DiscoverStage from "../components/DiscoverStage.vue";
+import SharedNavigation from "../components/SharedNavigation.vue";
 import type { DriftItem } from "../api/types";
 import { useIdentity } from "../store/identity";
 import { pushToast } from "../store/toast";
@@ -32,11 +33,6 @@ const actions = computed(() =>
     ? { cast: "扔一张浮笺", seek: "捞一个上来" }
     : { cast: "折一张飞笺", seek: "接住一张" },
 );
-
-function switchMode(next: "ocean" | "sky") {
-  if (next === mode.value) return;
-  router.push(next === "ocean" ? "/ocean" : "/");
-}
 
 function onSent(item: DriftItem) {
   composing.value = false;
@@ -70,13 +66,7 @@ function onSent(item: DriftItem) {
       </div>
 
       <nav class="nav">
-        <div class="mode-switch">
-          <button :class="{ active: mode === 'ocean' }" @click="switchMode('ocean')">海</button>
-          <button :class="{ active: mode === 'sky' }" @click="switchMode('sky')">天</button>
-          <button @click="router.push('/forest')">森</button>
-          <button @click="router.push('/echo')">灵</button>
-          <button @click="router.push('/soul')">魂</button>
-        </div>
+        <SharedNavigation />
         <button class="me" @click="router.push('/mine')" :aria-label="`查看我的${mode === 'ocean' ? '浮笺' : '飞笺'}`">
           <span class="me-avatar">{{ user?.avatar ?? "匿" }}</span>
           <span class="me-name">{{ user?.nickname }}</span>
@@ -171,32 +161,6 @@ function onSent(item: DriftItem) {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.mode-switch {
-  display: flex;
-  padding: 4px;
-  gap: 2px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(10px);
-}
-
-.mode-switch button {
-  padding: 7px 16px;
-  border-radius: 999px;
-  font-size: 13.5px;
-  letter-spacing: 0.14em;
-  color: var(--ink-dim);
-  transition:
-    background 0.3s ease,
-    color 0.3s ease;
-}
-
-.mode-switch button.active {
-  background: rgba(255, 255, 255, 0.14);
-  color: var(--ink);
 }
 
 .me {

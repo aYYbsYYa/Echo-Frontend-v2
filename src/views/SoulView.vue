@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import SoulBackdrop from "../components/SoulBackdrop.vue";
 import SoulIcon from "../components/SoulIcon.vue";
 import SoulDialogueStage from "../components/SoulDialogueStage.vue";
+import SharedNavigation from "../components/SharedNavigation.vue";
 import { api } from "../api/client";
 import type { SoulDialogue, SoulMatch, SoulMatchResult, SoulProfile } from "../api/types";
 import { useIdentity } from "../store/identity";
@@ -246,14 +247,8 @@ function goto(path: string) {
       </div>
 
       <nav class="nav">
-        <div class="mode-switch">
-          <button @click="goto('/ocean')">海</button>
-          <button @click="goto('/')">天</button>
-          <button @click="goto('/forest')">森</button>
-          <button @click="goto('/echo')">灵</button>
-          <button class="active">魂</button>
-        </div>
-        <button class="me" @click="router.push('/mine')" aria-label="回到我的海与风">
+        <SharedNavigation />
+        <button class="me" @click="router.push('/mine')" aria-label="查看我的海与风">
           <span class="me-avatar">{{ user?.avatar ?? "匿" }}</span>
           <span class="me-name">{{ user?.nickname }}</span>
         </button>
@@ -531,32 +526,6 @@ function goto(path: string) {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.mode-switch {
-  display: flex;
-  padding: 4px;
-  gap: 2px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(10px);
-}
-
-.mode-switch button {
-  padding: 7px 15px;
-  border-radius: 999px;
-  font-size: 13.5px;
-  letter-spacing: 0.14em;
-  color: var(--ink-dim);
-  transition:
-    background 0.3s ease,
-    color 0.3s ease;
-}
-
-.mode-switch button.active {
-  background: rgba(255, 255, 255, 0.14);
-  color: var(--ink);
 }
 
 .me {
@@ -1319,9 +1288,6 @@ function goto(path: string) {
   }
   .me-name {
     display: none;
-  }
-  .mode-switch button {
-    padding: 7px 11px;
   }
   .soul-main {
     padding: 0 14px 60px;

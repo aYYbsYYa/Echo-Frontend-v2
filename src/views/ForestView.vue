@@ -5,6 +5,7 @@ import ForestBackdrop from "../components/ForestBackdrop.vue";
 import TreeIcon from "../components/TreeIcon.vue";
 import CapsuleComposer from "../components/CapsuleComposer.vue";
 import CapsuleOpenStage from "../components/CapsuleOpenStage.vue";
+import SharedNavigation from "../components/SharedNavigation.vue";
 import { api } from "../api/client";
 import type { Capsule } from "../api/types";
 import { useIdentity } from "../store/identity";
@@ -100,10 +101,6 @@ async function load(silent = false) {
   }
 }
 
-function switchMode(next: "ocean" | "sky") {
-  router.push(next === "ocean" ? "/" : "/sky");
-}
-
 function onBuried(capsule: Capsule) {
   composing.value = false;
   capsules.value = [...capsules.value, capsule].sort((a, b) => a.unlock_at.localeCompare(b.unlock_at));
@@ -141,13 +138,7 @@ function onOpenClosed() {
       </div>
 
       <nav class="nav">
-        <div class="mode-switch">
-          <button @click="switchMode('ocean')">海</button>
-          <button @click="switchMode('sky')">天</button>
-          <button class="active">森</button>
-          <button @click="router.push('/echo')">灵</button>
-          <button @click="router.push('/soul')">魂</button>
-        </div>
+        <SharedNavigation />
         <button class="me" @click="router.push('/mine')" aria-label="查看我的林地">
           <span class="me-avatar">{{ user?.avatar ?? "匿" }}</span>
           <span class="me-name">{{ user?.nickname }}</span>
@@ -285,32 +276,6 @@ function onOpenClosed() {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.mode-switch {
-  display: flex;
-  padding: 4px;
-  gap: 2px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(10px);
-}
-
-.mode-switch button {
-  padding: 7px 16px;
-  border-radius: 999px;
-  font-size: 13.5px;
-  letter-spacing: 0.14em;
-  color: var(--ink-dim);
-  transition:
-    background 0.3s ease,
-    color 0.3s ease;
-}
-
-.mode-switch button.active {
-  background: rgba(255, 255, 255, 0.14);
-  color: var(--ink);
 }
 
 .me {

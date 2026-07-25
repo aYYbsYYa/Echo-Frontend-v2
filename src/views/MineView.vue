@@ -112,11 +112,11 @@ function onCapsuleClick(entry: Capsule) {
     </Transition>
 
     <header class="topbar">
-      <button class="back" @click="router.push('/')">
+      <button class="back" @click="router.push('/echo')">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="m15 18l-6-6 6-6" />
         </svg>
-        回到云端
+        回到灵笺
       </button>
       <h1 class="serif">我的海与风</h1>
       <span class="spacer" />
@@ -172,7 +172,7 @@ function onCapsuleClick(entry: Capsule) {
         <BottleIcon v-if="tab === 'bottle'" :size="42" class="hint-icon" />
         <PlaneIcon v-else :size="42" class="hint-icon" />
         <p>{{ tab === "bottle" ? "你还没有扔出浮笺。" : "你还没有折过飞笺。" }}</p>
-        <button class="btn btn-primary" @click="router.push(tab === 'bottle' ? '/' : '/sky')">
+        <button class="btn btn-primary" @click="router.push(tab === 'bottle' ? '/ocean' : '/sky')">
           {{ tab === "bottle" ? "去扔一张" : "去折一张" }}
         </button>
       </div>
