@@ -2,7 +2,14 @@ import { reactive, readonly } from "vue";
 import { api, ApiError } from "../api/client";
 import type { Identity } from "../api/types";
 
-const STORAGE_KEY = "echo.identity.v1";
+const DEFAULT_USER = {
+  id: "demo_user_main",
+  nickname: "林间旅人",
+  birthday: "2000-01-01",
+  gender: "prefer_not_to_say",
+  region: "杭州",
+  avatar: "林",
+} satisfies Identity;
 
 interface IdentityState {
   user: Identity | null;
@@ -12,51 +19,29 @@ interface IdentityState {
 
 const state = reactive<IdentityState>({ user: null, ready: false });
 
-function persist(user: Identity | null) {
-  if (user) localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-  else localStorage.removeItem(STORAGE_KEY);
-}
-
-/** 应用启动时恢复本地身份，并与服务端核对 */
+/** 所有访客共用固定演示账户；后端缺少账户时仅创建身份，不写入模拟内容。 */
 async function bootstrap() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (raw) {
-    try {
-      const cached = JSON.parse(raw) as Identity;
-      const { data } = await api.getUser(cached.id);
-      state.user = { ...cached, ...data };
-      persist(state.user);
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 404) {
-        persist(null);
-        state.user = null;
-      } else {
-        // 网络异常时先信任本地身份，保证离线可用
-        state.user = cached(raw);
-      }
-    }
-  }
-  state.ready = true;
-}
+  if (state.ready) return;
 
-function cached(raw: string | null): Identity | null {
-  if (!raw) return null;
   try {
-    return JSON.parse(raw) as Identity;
-  } catch {
-    return null;
+    const { data } = await api.getUser(DEFAULT_USER.id);
+    state.user = data;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      const { data } = await api.createUser(DEFAULT_USER);
+      state.user = data;
+    } else {
+      // 保留页面可用性；具体业务请求仍会提示后端连接问题。
+      state.user = DEFAULT_USER;
+    }
+  } finally {
+    state.ready = true;
   }
-}
-
-function setUser(user: Identity) {
-  state.user = user;
-  persist(user);
 }
 
 export function useIdentity() {
   return {
     state: readonly(state),
     bootstrap,
-    setUser,
   };
 }

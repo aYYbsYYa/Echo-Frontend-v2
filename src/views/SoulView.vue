@@ -14,16 +14,14 @@ const router = useRouter();
 const identity = useIdentity();
 const user = computed(() => identity.state.user);
 
-/* ---------------- Demo 灵魂 ---------------- */
+const soulUserId = computed(() => user.value?.id ?? "");
 
-const DEMO_SOULS = [
-  { id: "yeve", name: "Yeve", color: "#f0b57a" },
+const DEFAULT_AGENTS = [
+  { id: "sora", name: "Sora", color: "#d8bcf0" },
   { id: "luna", name: "Luna", color: "#e9a2a2" },
   { id: "kai", name: "Kai", color: "#7fd4c9" },
-  { id: "sora", name: "Sora", color: "#d8bcf0" },
 ];
-
-const activeSoul = ref("yeve");
+const selectedAgentId = ref("sora");
 
 /* ---------------- 灵魂画像 ---------------- */
 
@@ -33,10 +31,13 @@ const profileError = ref("");
 const profileRefreshing = ref(false);
 
 const GENERATED_LABELS: Record<string, string> = {
+  echo_profile: "灵笺画像",
   ai: "AI 提炼",
   demo_fallback: "Demo 兜底",
   demo_seed: "Demo 预置",
 };
+
+const needsEchoProfile = computed(() => !profileLoading.value && !profile.value && Boolean(profileError.value));
 
 const personaGroups = computed(() => {
   const p = profile.value?.persona;
@@ -53,8 +54,13 @@ async function loadProfile() {
   profileLoading.value = true;
   profileError.value = "";
   profile.value = null;
+  if (!soulUserId.value) {
+    profileError.value = "请先选择或创建你的身份。";
+    profileLoading.value = false;
+    return;
+  }
   try {
-    const { data } = await api.getSoulProfile(activeSoul.value);
+    const { data } = await api.getSoulProfile(soulUserId.value);
     profile.value = data;
   } catch (error) {
     profileError.value = error instanceof Error ? error.message : "画像暂时没有成形。";
@@ -67,9 +73,10 @@ async function refreshProfile() {
   if (profileRefreshing.value) return;
   profileRefreshing.value = true;
   try {
-    const { data } = await api.getSoulProfile(activeSoul.value, true);
+    await api.refreshEchoProfile(soulUserId.value);
+    const { data } = await api.getSoulProfile(soulUserId.value);
     profile.value = data;
-    pushToast("画像已重新提炼。", "success");
+    pushToast("画像已从灵笺重新提炼。", "success");
   } catch (error) {
     pushToast(error instanceof Error ? error.message : "提炼失败，请稍后再试。", "error");
   } finally {
@@ -113,14 +120,14 @@ function animateScores(matches: SoulMatch[]) {
 }
 
 async function startMatch() {
-  if (matching.value) return;
+  if (matching.value || !profile.value || !soulUserId.value) return;
   matching.value = true;
   matchError.value = "";
   matchResult.value = null;
   ringsLive.value = false;
   shownScores.value = {};
   try {
-    const { data } = await api.matchSouls(activeSoul.value, 3);
+    const { data } = await api.matchSouls(soulUserId.value, 3);
     matchResult.value = data;
     await nextTick();
     window.setTimeout(() => {
@@ -166,7 +173,8 @@ const deleting = ref(false);
 async function loadHistory() {
   historyLoading.value = true;
   try {
-    const { data } = await api.listSoulDialogues(activeSoul.value);
+    if (!soulUserId.value) return;
+    const { data } = await api.listSoulDialogues(soulUserId.value);
     historyList.value = data;
   } catch {
     /* 历史失败不打断页面 */
@@ -190,7 +198,7 @@ async function confirmDelete(item: SoulDialogue) {
   if (deleting.value) return;
   deleting.value = true;
   try {
-    await api.deleteSoulDialogue(activeSoul.value, item.id);
+    await api.deleteSoulDialogue(soulUserId.value, item.id);
     historyList.value = historyList.value.filter((d) => d.id !== item.id);
     confirmingDelete.value = null;
     pushToast("这段回响已随风散去。", "info");
@@ -207,7 +215,7 @@ function isOwnSide(item: SoulDialogue, userId: string): boolean {
 
 /* ---------------- 生命周期 ---------------- */
 
-watch(activeSoul, () => {
+watch(soulUserId, () => {
   matchResult.value = null;
   matchError.value = "";
   expandedId.value = null;
@@ -259,23 +267,22 @@ function goto(path: string) {
         <p class="sub">Soul Agent 是你长期表达的回声 —— 让它们替你，去星空中碰碰面</p>
       </section>
 
-      <!-- Demo 灵魂选择 -->
       <section class="chooser">
-        <p class="chooser-label">选择一位旅人的 Soul Agent</p>
+        <p class="chooser-label">选择一位默认 Soul Agent</p>
         <div class="soul-chips">
           <button
-            v-for="soul in DEMO_SOULS"
-            :key="soul.id"
+            v-for="agent in DEFAULT_AGENTS"
+            :key="agent.id"
             class="soul-chip"
-            :class="{ active: activeSoul === soul.id }"
-            :style="{ '--soul-color': soul.color }"
-            @click="activeSoul = soul.id"
+            :class="{ active: selectedAgentId === agent.id }"
+            :style="{ '--soul-color': agent.color }"
+            @click="selectedAgentId = agent.id"
           >
             <span class="chip-orb" />
-            {{ soul.name }}
+            {{ agent.name }}
           </button>
         </div>
-        <p class="chooser-note">Demo 演示 · 四位旅人的历史表达已预置，Soul Agent 由此而生</p>
+        <p class="chooser-note">你的 Soul Agent 将与选中的默认 Agent 进行对话</p>
       </section>
 
       <!-- 灵魂画像 -->
@@ -311,7 +318,8 @@ function goto(path: string) {
 
         <div v-else-if="profileError" class="panel-hint">
           <p>{{ profileError }}</p>
-          <button class="btn btn-ghost" @click="loadProfile">再试一次</button>
+          <button v-if="needsEchoProfile" class="btn btn-primary" @click="goto('/echo')">去灵笺生成画像</button>
+          <button v-else class="btn btn-ghost" @click="loadProfile">再试一次</button>
         </div>
 
         <template v-else-if="profile">
@@ -335,12 +343,21 @@ function goto(path: string) {
       <section class="panel glass-card">
         <header class="panel-head">
           <h2 class="serif">灵魂匹配</h2>
-          <button class="btn btn-primary match-btn" :disabled="matching" @click="startMatch">
-            <span v-if="matching" class="btn-loader" />
-            {{ matching ? "正在星空中寻找同类……" : matchResult ? "再匹配一次" : "开始灵魂匹配" }}
-          </button>
+          <div class="match-actions">
+            <button
+              class="btn btn-ghost"
+              :disabled="!profile"
+              @click="collide(selectedAgentId)"
+            >
+              与 {{ DEFAULT_AGENTS.find(agent => agent.id === selectedAgentId)?.name }} 对话
+            </button>
+            <button class="btn btn-primary match-btn" :disabled="matching || !profile" @click="startMatch">
+              <span v-if="matching" class="btn-loader" />
+              {{ matching ? "正在星空中寻找同类……" : matchResult ? "再匹配一次" : "开始灵魂匹配" }}
+            </button>
+          </div>
         </header>
-        <p class="panel-desc">匿名的契合度，由兴趣、心绪与珍视之事算成。身份，在对话之前互不可见。</p>
+        <p class="panel-desc">你的 Soul Agent 将与 Sora、Luna、Kai 逐一匹配，并代你进行匿名 Agent 对话。</p>
 
         <div v-if="matchError" class="panel-hint">
           <p>{{ matchError }}</p>
@@ -387,7 +404,8 @@ function goto(path: string) {
         </TransitionGroup>
 
         <div v-else-if="!matching" class="panel-hint dim-hint">
-          <p>按下按钮，让 {{ DEMO_SOULS.find(s => s.id === activeSoul)?.name }} 的 Soul Agent 去星空中寻找契合的回声。</p>
+          <p v-if="profile">按下按钮，让你的 Soul Agent 去星空中寻找契合的回声。</p>
+          <p v-else>先在灵笺中形成用户画像，才能开始灵魂匹配。</p>
         </div>
       </section>
 
@@ -468,7 +486,7 @@ function goto(path: string) {
     <!-- 碰撞舞台 -->
     <SoulDialogueStage
       v-if="stageTarget"
-      :user-id="activeSoul"
+      :user-id="soulUserId"
       :target-user-id="stageTarget.targetUserId"
       @close="onStageClose"
       @finished="onStageFinished"
@@ -957,6 +975,12 @@ function goto(path: string) {
 
 /* ---------------- 匹配 ---------------- */
 
+.match-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .match-btn {
   flex: none;
   display: inline-flex;
@@ -1304,6 +1328,14 @@ function goto(path: string) {
   }
   .panel {
     padding: 20px 18px;
+  }
+  .panel-head {
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .match-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
   .chip-group {
     flex-direction: column;

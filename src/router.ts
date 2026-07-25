@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useIdentity } from "./store/identity";
 
-const WelcomeView = () => import("./views/WelcomeView.vue");
 const HomeView = () => import("./views/HomeView.vue");
 const ForestView = () => import("./views/ForestView.vue");
 const MineView = () => import("./views/MineView.vue");
@@ -11,7 +10,7 @@ const SoulView = () => import("./views/SoulView.vue");
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: "/welcome", name: "welcome", component: WelcomeView, meta: { mode: "sky" } },
+    { path: "/welcome", redirect: "/ocean" },
     { path: "/", name: "sky", component: HomeView, meta: { mode: "sky" } },
     { path: "/ocean", name: "ocean", component: HomeView, meta: { mode: "ocean" } },
     { path: "/forest", name: "forest", component: ForestView, meta: { mode: "forest" } },
@@ -26,10 +25,7 @@ export const router = createRouter({
 
 const identity = useIdentity();
 
-router.beforeEach(async (to) => {
+router.beforeEach(async () => {
   if (!identity.state.ready) await identity.bootstrap();
-  const loggedIn = Boolean(identity.state.user);
-  if (!loggedIn && to.name !== "welcome") return { name: "welcome" };
-  if (loggedIn && to.name === "welcome") return { name: "ocean" };
   return true;
 });
