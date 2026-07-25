@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import MirrorBackdrop from "../components/MirrorBackdrop.vue";
 import LanternIcon from "../components/LanternIcon.vue";
@@ -30,6 +30,22 @@ const entries = ref<ChatEntry[]>([]);
 const scrollBox = ref<HTMLElement>();
 const inputRef = ref<HTMLTextAreaElement>();
 const draft = ref("");
+const recording = ref(false);
+const transcribing = ref(false);
+let mediaRecorder: MediaRecorder | null = null;
+let mediaStream: MediaStream | null = null;
+let audioChunks: Blob[] = [];
+let recordingTimer: number | undefined;
+const speakingMessageId = ref<string | null>(null);
+const speechLoadingId = ref<string | null>(null);
+let replyAudio: HTMLAudioElement | null = null;
+let replyAudioUrl: string | null = null;
+
+const voiceLabel = computed(() => {
+  if (transcribing.value) return "灵笺正在辨认……";
+  if (recording.value) return "正在听你说话，点击结束";
+  return "按下后说给灵笺听";
+});
 
 /** 人格画像提示只弹一次 */
 let profileHinted = false;
@@ -185,6 +201,7 @@ async function send(text?: string) {
       { kind: "message", message: data.user_message },
       { kind: "message", message: data.assistant_message },
     ];
+    void playReply(data.assistant_message);
     if (!profileHinted && userMessageCount.value >= 5) {
       profileHinted = true;
       window.setTimeout(
@@ -218,6 +235,123 @@ function resizeInput() {
   el.style.height = "auto";
   el.style.height = Math.min(el.scrollHeight, 132) + "px";
 }
+
+function stopReply() {
+  replyAudio?.pause();
+  if (replyAudio) replyAudio.currentTime = 0;
+  replyAudio = null;
+  if (replyAudioUrl) URL.revokeObjectURL(replyAudioUrl);
+  replyAudioUrl = null;
+  speakingMessageId.value = null;
+}
+
+async function playReply(message: EchoMessage) {
+  if (speakingMessageId.value === message.id) {
+    stopReply();
+    return;
+  }
+  stopReply();
+  speechLoadingId.value = message.id;
+  try {
+    const blob = await api.synthesizeSpeech(message.content);
+    replyAudioUrl = URL.createObjectURL(blob);
+    replyAudio = new Audio(replyAudioUrl);
+    speakingMessageId.value = message.id;
+    replyAudio.onended = stopReply;
+    replyAudio.onerror = () => {
+      stopReply();
+      pushToast("这段声音暂时无法播放。", "error");
+    };
+    await replyAudio.play();
+  } catch (error) {
+    stopReply();
+    pushToast(error instanceof Error ? error.message : "灵笺暂时无法开口。", "error");
+  } finally {
+    speechLoadingId.value = null;
+  }
+}
+
+function releaseMicrophone() {
+  if (recordingTimer !== undefined) window.clearTimeout(recordingTimer);
+  recordingTimer = undefined;
+  mediaStream?.getTracks().forEach((track) => track.stop());
+  mediaStream = null;
+  mediaRecorder = null;
+  recording.value = false;
+}
+
+async function transcribeRecording(blob: Blob) {
+  if (!blob.size) return;
+  transcribing.value = true;
+  try {
+    const extension = blob.type.includes("ogg") ? "ogg" : "webm";
+    const { data } = await api.transcribeAudio(blob, `lingjian-recording.${extension}`);
+    draft.value = [draft.value.trim(), data.text].filter(Boolean).join("\n");
+    await nextTick();
+    resizeInput();
+    inputRef.value?.focus();
+    pushToast("声音已经落成文字，你可以修改后再寄出。", "success");
+  } catch (error) {
+    pushToast(error instanceof Error ? error.message : "没有听清，请再说一次。", "error");
+  } finally {
+    transcribing.value = false;
+  }
+}
+
+function stopRecording() {
+  if (!mediaRecorder || mediaRecorder.state === "inactive") return;
+  mediaRecorder.stop();
+}
+
+async function toggleRecording() {
+  if (recording.value) {
+    stopRecording();
+    return;
+  }
+  if (transcribing.value || sending.value) return;
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    pushToast("当前浏览器暂不支持录音，请使用最新版浏览器。", "error");
+    return;
+  }
+
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    const preferredType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+      ? "audio/webm;codecs=opus"
+      : MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")
+        ? "audio/ogg;codecs=opus"
+        : "";
+    mediaRecorder = preferredType
+      ? new MediaRecorder(mediaStream, { mimeType: preferredType })
+      : new MediaRecorder(mediaStream);
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size) audioChunks.push(event.data);
+    };
+    mediaRecorder.onstop = () => {
+      const type = mediaRecorder?.mimeType || audioChunks[0]?.type || "audio/webm";
+      const blob = new Blob(audioChunks, { type });
+      releaseMicrophone();
+      void transcribeRecording(blob);
+    };
+    mediaRecorder.start();
+    recording.value = true;
+    recordingTimer = window.setTimeout(stopRecording, 60_000);
+  } catch (error) {
+    releaseMicrophone();
+    const denied = error instanceof DOMException && error.name === "NotAllowedError";
+    pushToast(denied ? "需要麦克风权限，才能听见你的声音。" : "麦克风暂时无法使用。", "error");
+  }
+}
+
+onBeforeUnmount(() => {
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    mediaRecorder.onstop = null;
+    mediaRecorder.stop();
+  }
+  releaseMicrophone();
+  stopReply();
+});
 
 function scrollToBottom() {
   nextTick(() => {
@@ -444,6 +578,22 @@ async function openHistory() {
                     {{ entry.message.mode === "mirror" ? "镜中的你" : "灵笺" }} ·
                   </template>
                   {{ timeAgo(entry.message.timestamp) }}
+                  <button
+                    v-if="entry.message.role === 'assistant'"
+                    class="speak-btn"
+                    :class="{ active: speakingMessageId === entry.message.id }"
+                    :disabled="speechLoadingId === entry.message.id"
+                    :aria-label="speakingMessageId === entry.message.id ? '停止朗读' : '朗读这条回复'"
+                    :title="speakingMessageId === entry.message.id ? '停止朗读' : '朗读这条回复'"
+                    @click="playReply(entry.message)"
+                  >
+                    <span v-if="speechLoadingId === entry.message.id" class="speak-loader" />
+                    <svg v-else viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+                      <path v-if="speakingMessageId !== entry.message.id" d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" />
+                      <path v-else d="M16 9v6M20 9v6" />
+                    </svg>
+                  </button>
                 </span>
               </div>
               <span v-if="entry.message.role === 'user'" class="msg-avatar user-avatar">
@@ -465,15 +615,32 @@ async function openHistory() {
       </div>
 
       <!-- 书写坞 -->
-      <footer class="write-dock glass-card">
+      <footer class="write-dock glass-card" :class="{ listening: recording }">
+        <button
+          class="voice-btn"
+          :class="{ recording, transcribing }"
+          :disabled="booting || Boolean(bootError) || sending || transcribing"
+          :aria-label="voiceLabel"
+          :title="voiceLabel"
+          @click="toggleRecording"
+        >
+          <span v-if="recording" class="voice-ripple" />
+          <span v-if="transcribing" class="voice-spinner" />
+          <svg v-else viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="3" width="6" height="11" rx="3" />
+            <path d="M5.5 10.5a6.5 6.5 0 0 0 13 0M12 17v4M8.5 21h7" />
+          </svg>
+        </button>
         <div class="input-wrap">
-          <span v-if="!draft" class="input-placeholder">{{ placeholder }}</span>
+          <span v-if="recording" class="input-placeholder voice-active">正在听你说话，再按一次结束……</span>
+          <span v-else-if="transcribing" class="input-placeholder voice-active">声音正慢慢落成文字……</span>
+          <span v-else-if="!draft" class="input-placeholder">{{ placeholder }}</span>
           <textarea
             ref="inputRef"
             v-model="draft"
             rows="1"
             aria-label="写下想对灵笺说的话"
-            :disabled="booting || Boolean(bootError)"
+            :disabled="booting || Boolean(bootError) || recording || transcribing"
             @input="resizeInput"
             @keydown.enter="onEnter"
           />
@@ -1049,11 +1216,46 @@ async function openHistory() {
 }
 
 .msg-meta {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 5px;
   margin-top: 6px;
   font-size: 11px;
   letter-spacing: 0.12em;
   color: var(--ink-faint);
+}
+
+.speak-btn {
+  width: 25px;
+  height: 25px;
+  margin-left: 2px;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  color: rgba(216, 188, 240, 0.7);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.speak-btn:hover:not(:disabled),
+.speak-btn.active {
+  color: #f3dcff;
+  background: rgba(216, 188, 240, 0.1);
+  border-color: rgba(216, 188, 240, 0.2);
+}
+
+.speak-btn:disabled {
+  cursor: wait;
+}
+
+.speak-loader {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(216, 188, 240, 0.25);
+  border-top-color: #e8c9f5;
+  animation: spin 0.8s linear infinite;
 }
 
 .msg-row.user .msg-meta {
@@ -1123,6 +1325,65 @@ async function openHistory() {
   }
 }
 
+.write-dock.listening {
+  border-color: rgba(216, 188, 240, 0.42);
+  box-shadow: 0 0 30px rgba(160, 108, 208, 0.16);
+}
+
+.voice-btn {
+  position: relative;
+  flex: none;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 2px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #dbc9eb;
+  background: rgba(216, 188, 240, 0.08);
+  border: 1px solid rgba(216, 188, 240, 0.24);
+  transition: color 0.25s ease, background 0.25s ease, transform 0.25s ease;
+}
+
+.voice-btn:hover:not(:disabled) {
+  color: #fff0d5;
+  background: rgba(216, 188, 240, 0.16);
+  transform: translateY(-1px);
+}
+
+.voice-btn.recording {
+  color: #2a1240;
+  background: linear-gradient(135deg, #ead7f7, #c9a0e8);
+}
+
+.voice-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.voice-ripple {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  background: #6c378f;
+  box-shadow: 0 0 0 0 rgba(216, 188, 240, 0.55);
+  animation: voice-pulse 1.4s ease-out infinite;
+}
+
+.voice-spinner {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 2px solid rgba(216, 188, 240, 0.25);
+  border-top-color: #ead7f7;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes voice-pulse {
+  70% { box-shadow: 0 0 0 11px rgba(216, 188, 240, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(216, 188, 240, 0); }
+}
+
 .input-wrap {
   position: relative;
   flex: 1;
@@ -1144,6 +1405,11 @@ async function openHistory() {
   font-size: 15px;
   line-height: 1.6;
   color: var(--ink-faint);
+}
+
+.input-placeholder.voice-active {
+  color: rgba(232, 201, 245, 0.88);
+  letter-spacing: 0.04em;
 }
 
 .write-dock textarea {

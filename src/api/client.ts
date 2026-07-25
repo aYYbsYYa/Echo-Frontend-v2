@@ -196,6 +196,34 @@ export const api = {
   },
 
   // ---------- 灵笺（自我对话） ----------
+  transcribeAudio(audio: Blob, filename = "recording.webm") {
+    const form = new FormData();
+    form.append("file", audio, filename);
+    return request<{ data: { text: string } }>("/audio/transcriptions/upload", {
+      method: "POST",
+      body: form,
+    });
+  },
+  async synthesizeSpeech(text: string) {
+    let res: Response;
+    try {
+      res = await fetch(`${BASE}/audio/speech`, postJson({ text }));
+    } catch {
+      throw new ApiError("连不上服务器，请确认后端已启动。", 0);
+    }
+    if (!res.ok) {
+      let message = `语音生成失败（${res.status}）`;
+      try {
+        const body = (await res.json()) as ApiErrorShape;
+        const shape = body.error;
+        message = typeof shape === "string" ? shape : shape?.message ?? message;
+      } catch {
+        /* 非 JSON 错误响应 */
+      }
+      throw new ApiError(message, res.status);
+    }
+    return res.blob();
+  },
   createEchoConversation(userId: string, mode: EchoMode = "listen") {
     return request<{ data: EchoConversation }>(
       "/echo/conversations",
