@@ -17,7 +17,7 @@ import type {
   SoulStreamEvent,
 } from "./types";
 
-const BASE = "/api";
+const BASE = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "");
 
 export class ApiError extends Error {
   status: number;

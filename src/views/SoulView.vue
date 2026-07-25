@@ -339,13 +339,6 @@ function goto(path: string) {
         <header class="panel-head">
           <h2 class="serif">灵魂匹配</h2>
           <div class="match-actions">
-            <button
-              class="btn btn-ghost"
-              :disabled="!profile"
-              @click="collide(selectedAgentId)"
-            >
-              与 {{ DEFAULT_AGENTS.find(agent => agent.id === selectedAgentId)?.name }} 对话
-            </button>
             <button class="btn btn-primary match-btn" :disabled="matching || !profile" @click="startMatch">
               <span v-if="matching" class="btn-loader" />
               {{ matching ? "正在星空中寻找同类……" : matchResult ? "再匹配一次" : "开始灵魂匹配" }}
