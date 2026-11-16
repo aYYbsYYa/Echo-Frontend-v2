@@ -2,7 +2,7 @@
 
 > 社交是向外的喧嚣，Echo 是向内的回响。
 
-这是 Yeve Echo 的**第二代前端**，也是在线演示 <https://echo.yeve.top> 当前运行的版本。它在 v1（[Echo-Frontend](https://github.com/aYYbsYYa/Echo-Frontend)）的基础上完全重构：补齐心笺（时光树洞）与灵笺（AI 自我对话）两条产品线，把硬件戒指链路替换为浏览器原生语音，统一了全站术语、导航、身份与设计令牌，并把视觉升级为「海 / 天 / 森 / 镜 / 星空」五套可交互动效场景。
+这是 Yeve Echo 的**第二代前端**，也是在线演示 <https://echo.yyoo.fun> 当前运行的版本。它在 v1（[Echo-Frontend](https://github.com/aYYbsYYa/Echo-Frontend)）的基础上完全重构：补齐心笺（时光树洞）与灵笺（AI 自我对话）两条产品线，把硬件戒指链路替换为浏览器原生语音，统一了全站术语、导航、身份与设计令牌，并把视觉升级为「海 / 天 / 森 / 镜 / 星空」五套可交互动效场景。
 
 - 服务端：<https://github.com/aYYbsYYa/Echo-Backtend>
 - 第一代前端：<https://github.com/aYYbsYYa/Echo-Frontend>
